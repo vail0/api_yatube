@@ -1,4 +1,4 @@
-from api.views import GroupViewSet, PostViewSet
+from api.views import CommentViewSet, GroupViewSet, PostViewSet
 from django.urls import include, path
 
 from rest_framework.routers import DefaultRouter
@@ -9,9 +9,12 @@ router = DefaultRouter()
 router.register('posts', PostViewSet)
 router.register('groups', GroupViewSet)
 
+# При регистрации эндпоинтов с таким URL-префиксом
+router.register(r'post/(?P<post_id>[\d]+)/comments', CommentViewSet)
+# ...вьюсет AnyViewSet будет получать на обработку все запросы с адресов
+# ...и подобных, ограниченных маской регулярного выражения.
+
 urlpatterns = [
     # Все зарегистрированные в router пути доступны в router.urls
-    # Включим их в головной urls.py
-    path('', include(router.urls)),
-
+    path('api/v1/', include(router.urls)),
 ]
