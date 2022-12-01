@@ -10,7 +10,8 @@ router.register('posts', PostViewSet)
 router.register('groups', GroupViewSet)
 
 # При регистрации эндпоинтов с таким URL-префиксом
-router.register(r'posts/(?P<post_id>[\d]+)/comments', CommentViewSet)
+router.register(r'posts/(?P<post_id>[\d]+)/comments', CommentViewSet,
+                basename='post_comments')
 # ...вьюсет AnyViewSet будет получать на обработку все запросы с адресов
 # ...и подобных, ограниченных маской регулярного выражения.
 
