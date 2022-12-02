@@ -1,29 +1,39 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import status, viewsets
-from rest_framework.exceptions import PermissionDenied
-
+from posts.models import Comment, Group, Post
+from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 
-from posts.models import Comment, Group, Post
 from .serializers import CommentSerializer, GroupSerializer, PostSerializer
 
 
+def get_post(self):
+    post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
+    return post
+
+
+class IsOwnerOrReadOnly(permissions.BasePermission):
+    """
+    Object-level permission to only allow owners of an object to edit it.
+    Assumes the model instance has an `owner` attribute.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        # Read permissions are allowed to any request,
+        # so we'll always allow GET, HEAD or OPTIONS requests.
+        if request.method in permissions.SAFE_METHODS:
+            return True
+
+        # Instance must have an attribute named `owner`.
+        return obj.author == request.user
+
+
 class PostViewSet(viewsets.ModelViewSet):
-    queryset = Post.objects.all()
+    queryset = Post.objects.select_related('group', 'author')
     serializer_class = PostSerializer
+    permission_classes = (IsOwnerOrReadOnly, permissions.IsAuthenticated)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
-
-    def perform_update(self, serializer):
-        if serializer.instance.author != self.request.user:
-            raise PermissionDenied('Чужой пост')
-        return super().perform_update(serializer)
-
-    def perform_destroy(self, instance):
-        if instance.author != self.request.user:
-            raise PermissionDenied('Чужой пост не удаляй')
-        return super().perform_destroy(instance)
 
 
 class GroupViewSet(viewsets.ModelViewSet):
@@ -35,26 +45,15 @@ class GroupViewSet(viewsets.ModelViewSet):
 
 
 class CommentViewSet(viewsets.ModelViewSet):
-    # queryset = Comment.objects.all()
     serializer_class = CommentSerializer
+    permission_classes = (IsOwnerOrReadOnly, permissions.IsAuthenticated)
 
     def get_queryset(self):
-        post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
-        queryset = Comment.objects.filter(post=post)
+        queryset = Comment.objects.filter(post=get_post(self))
         return queryset
 
     def perform_create(self, serializer):
-        get_object_or_404(Post, pk=self.kwargs.get('post_id'))
+        get_post(self)
         serializer.save(author=self.request.user,
                         post_id=self.kwargs.get('post_id'))
         return super().perform_create(serializer)
-
-    def perform_update(self, serializer):
-        if serializer.instance.author != self.request.user:
-            raise PermissionDenied('Чужой коммент')
-        return super().perform_update(serializer)
-
-    def perform_destroy(self, instance):
-        if instance.author != self.request.user:
-            raise PermissionDenied('Чужой коммент не удаляй')
-        return super().perform_destroy(instance)
