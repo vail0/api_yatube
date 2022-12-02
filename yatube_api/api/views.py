@@ -6,11 +6,6 @@ from rest_framework.response import Response
 from .serializers import CommentSerializer, GroupSerializer, PostSerializer
 
 
-def get_post(self):
-    post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
-    return post
-
-
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """
     Object-level permission to only allow owners of an object to edit it.
@@ -48,12 +43,17 @@ class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
     permission_classes = (IsOwnerOrReadOnly, permissions.IsAuthenticated)
 
+    def get_post(self):
+        post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
+        return post
+
     def get_queryset(self):
-        queryset = Comment.objects.filter(post=get_post(self))
+        post = self.get_post()
+        queryset = Comment.objects.filter(post=post)
         return queryset
 
     def perform_create(self, serializer):
-        get_post(self)
+        self.get_post()
         serializer.save(author=self.request.user,
                         post_id=self.kwargs.get('post_id'))
         return super().perform_create(serializer)
